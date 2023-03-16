@@ -46,7 +46,9 @@ class ProductSchema(ma.Schema):
     class Meta:
         fields = ('id', 'name', 'description', 'price', 'inventory_quantity')
 
-
+    @post_load
+    def create_product(self, data, **kwargs):
+        return Product(**data)
 
 product_schema = ProductSchema()
 products_schema = ProductSchema(many=True)
@@ -58,15 +60,14 @@ class ProductListResource(Resource):
         return products_schema.dump(all_products)
 
     def post(self):
-        new_product = Product(
-            name=request.json['name'],
-            description=request.json['desccription'],
-            price=request.json['price'],
-            inventory_quantity=request.json['inventory_quantity']
-        )
-        db.session.add(new_product)
-        db.session.commit()
-        return product_schema.dump(new_product), 201
+        form_data = request.get_json()
+        try:
+            new_product = product_schema.load(form_data)
+            db.session.add(new_product)
+            db.session.commit()
+            return product_schema.dump(new_product), 201
+        except ValidationError as err:
+            return err.messages, 400
     
 class ProductResource(Resource):
     def get(self, product_id):
